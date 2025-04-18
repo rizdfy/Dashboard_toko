@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Toko</title>
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+    
+    <div id="custom-showAlert" class="showAlert"></div>
+    <!-- Form Login -->
+    <div id="login-form" class="container">
+        <h2>Login Admin <br> Toko H Endun</h2>
+        <input type="email" id="email" placeholder="Email" />
+        <input type="password" id="password" placeholder="Password" />
+        <button id="login-btn">Login</button>
+        <button id="google-login-btn">Login dengan Google</button>
+        <p>Belum punya akun? <a href="#" id="show-signup">Daftar</a></p>
+        <p>credit - @pasya</p>
+    </div>
+    <!-- Form Daftar -->
+    <div id="signup-form" class="container" style="display: none;">
+        <h2>Daftar <br> Akun Baru</h2>
+        <!-- Form Pendaftaran -->
+        <input type="email" id="signup-email" placeholder="Email" required />
+        <input type="password" id="signup-password" placeholder="Password" required />
+        <button id="signup-btn">Daftar</button>
+        <!-- Input Kode Verifikasi -->
+        <div id="verification-code-input" style="display:none;">
+            <input type="text" id="verification-code" placeholder="Masukkan kode verifikasi" required />
+            <button id="verify-code-btn" style="display:none;">Verifikasi</button>
+        </div>
+        <p>Sudah punya akun? <br> <a href="#" id="show-login">Kembali ke Login</a></p>
+        <p>credit - @pasya</p>
+    </div>
+    <!-- Dashboard -->
+    <div id="dashboard-container" class="container">
+        <button id="btn-stock-opname" class="opname-btn">Stock Opname</button>
+        <button id="logout-btn" class="logout-btn">Logout</button>
+        <div class="foto-wrapper">
+            <img id="user-photo" class="user-photo" src="" alt="Foto User" />
+        </div>  
+        <h2>Dashboard</h2>
+        <p>Selamat datang, <span id="user-email"></span>!</p>
+
+        <div id="form-barang">
+            
+            <input type="text" id="namaBarang" placeholder="Nama Barang" />
+            <input type="number" id="hargaBarang" placeholder="Harga (Rp)" />
+            <button id="btnTambah">Tambah Barang</button>
+        </div>
+        <div id ="cari-barang">
+            <input type="text" id="searchBarang" placeholder="Cari Barang" oninput="loadBarang()" />
+        </div>
+        
+        <div id="barangContainer">
+            <div style="overflow-y: auto; max-height: 300px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>Nama Barang</th>
+                            <th>Harga</th>
+                            <th>Terakhir Diedit</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="barangList"></tbody>
+                </table>
+            </div>
+        </div>
+        <div id="loading-upload" style="display: none; margin-top: 10px; color: #28a745;">
+            ⏳ Mengunggah data ke Firestore...
+          </div>
+        <input type="file" id="excelUpload" />
+        <button id="stopUploadBtn" style="display: none; margin-top: 10px;">🛑 Stop Upload</button>
+
+        <div id="upload-log" style="display: none; max-height: 200px; overflow-y: auto; background: #f9f9f9; border: 1px solid #ccc; padding: 10px; margin-top: 10px; font-size: 14px; border-radius: 5px;">
+            <strong>📤 Log Upload:</strong>
+          </div>
+          
+        <button onclick="uploadExcelToFirestore()">Upload</button>
+        
+          
+
+        <button id="convert-btn">Convert ke Spreadsheet</button>
+
+    </div>
+    <!-- Stock Opname Container -->
+<div id="stock-opname-container" class="container" style="display: none; max-height: 90vh; overflow-y: auto;">
+        <button id="btnBackToDashboard" class="btnBackToDashboard">Kembali ke Dashboard</button>
+        <h2>Dashboard<br>Stock Opname</h2>
+        <p id="judul-dokumen-terpilih" style="font-weight: bold; margin-bottom: 10px;"></p>
+
+        
+            <!-- Lembar Kurang -->
+        <div style="margin-top: 20px;">
+            <h4>Lembar Kurang</h4>
+            <div style="overflow-y: auto; max-height: 130px; border: 1px solid #ccc;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr>
+                            <th>Qty</th>
+                            <th>Nama Barang</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lembarKurang"></tbody>
+                </table>
+            </div>
+        </div>
+
+            <!-- Lembar Lebih -->
+        <div style="margin-top: 20px;">
+            <h4>Lembar Lebih</h4>
+            <div style="overflow-y: auto; max-height: 130px; border: 1px solid #ccc;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr>
+                            <th>Qty</th>
+                            <th>Nama Barang</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lembarLebih"></tbody>
+                </table>
+            </div>
+
+            <!-- 🆕 Tambahkan input ini -->
+            <input type="text" id="judulDokumen" placeholder="Masukkan nama dokumen" style="margin-top: 15px; width: 100%; padding: 5px;" />
+
+            <button id="btnSimpanOpname">Simpan Hasil Stock Opname</button>
+            <button id="btn-riwayat-stock-opname">Riwayat Stock Opname</button>
+        </div>
+
+
+
+    <!-- Sidebar daftar barang -->
+    <div id="sidebar-barang" style="flex: 1;">
+        <h3>Daftar Barang</h3>
+        <input type="text" id="searchSidebarBarang" placeholder="Cari barang..." oninput="loadSidebarBarang()">
+        <div id="sidebarBarangContainer" style="max-height: 300px; overflow-y: auto; border: 1px solid #ccc; width: 100%; padding: 5px;">
+            <table id="sidebarBarangList">
+                <thead>
+                    <tr>
+                        <th>No</th>
+                        <th>Nama</th>
+                        <th>Harga</th>
+                        <th>aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Diisi oleh JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!------>
+
+<div id="riwayat-container" class="container" style="display: none;">
+    <h2>Riwayat <br> Stock Opname</h2>
+
+    <!-- Daftar Riwayat (scrollable) -->
+    <div id="riwayat-list" style="max-height: 200px; overflow-y: auto;"></div>
+
+    <!-- Tombol Hapus Semua Riwayat -->
+    <div id="hapus-semua-wrapper">
+        <button onclick="hapusSemuaRiwayat()" class="btnreset">🗑️ Hapus Semua Riwayat</button>
+    </div>
+
+    <!-- Tombol Kembali -->
+    <button onclick="kembaliKeDashboard()" class="btnkembali">Kembali</button>
+</div>
+
+
+
+
+
+<!-- Notifikasi perubahan harga -->
+<div id="price-diff-container" class="price-diff">
+    <span class="close-price-diff">✕</span> <!-- Tombol close -->
+    <h3>Perubahan Harga</h3>
+    <p><strong>Nama Barang:</strong> <span id="diff-nama"></span></p>
+    <p><strong>Harga Lama:</strong> Rp <span id="harga-lama">-</span></p>
+    <p><strong>Harga Baru:</strong> Rp <span id="harga-baru">-</span></p>
+    <p><strong>Selisih:</strong> Rp <span id="selisih-harga">-</span></p>
+</div>
+<script type="module" src="main.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</body>
+</html>
