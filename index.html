@@ -9,11 +9,50 @@
 <body>
 
 
-<!-- Tambahkan ini di bagian <body>, sebelum elemen lainnya -->
-    <div id="maintenance-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #ffffff; z-index: 9999; display: flex; justify-content: center; align-items: center; flex-direction: column; text-align: center;">
-        <h2 style="color: #856404;">⚠️ <br> Website sedang dalam pemeliharaan</h2>
-        <p style="color: #856404; max-width: 400px;">Saat ini website tidak dapat digunakan karena sedang dalam proses maintenance. Silakan kembali lagi nanti.</p>
-      </div>
+
+    
+<!-- Maintenance Overlay -->
+<div id="maintenance-overlay" style="
+  display: none;
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  background: linear-gradient(to bottom right, #fffbe6, #fff);
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  text-align: center;
+  padding: 20px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  animation: fadeIn 0.6s ease-in-out;
+">
+  <div style="
+    background: #fff3cd;
+    border: 1px solid #ffeeba;
+    padding: 30px 40px;
+    border-radius: 12px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.1);
+    max-width: 500px;
+  ">
+    <h2 style="color: #856404; margin-bottom: 15px; font-size: 24px;">⚠️ Website dalam Pemeliharaan</h2>
+    <p style="color: #856404; font-size: 16px;">
+      Kami sedang melakukan pembaruan sistem. Silakan kembali lagi beberapa saat lagi.<br><br>
+      Terima kasih atas pengertian Anda 🙏
+    </p>
+  </div>
+</div>
+
+<style>
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+</style>
+
+
+    
       
 
 
