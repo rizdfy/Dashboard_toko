@@ -23,7 +23,8 @@ import { GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/fir
 
 document.addEventListener("DOMContentLoaded", async () => {
     try {
-        const res = await fetch("https://raw.githubusercontent.com/rizdfy/Dashboard_toko/main/maintenance-config.json?_=" + new Date().getTime(), {
+        const res = await fetch("maintenance-config.json?_=" + new Date().getTime())
+
         cache: "no-store",
         headers: {
           'Cache-Control': 'no-cache',
