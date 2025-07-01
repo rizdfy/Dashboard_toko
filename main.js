@@ -22,38 +22,38 @@ import { GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/fir
 // ✅ Versi stabil: restore semua elemen halaman saat maintenance OFF
 
 document.addEventListener("DOMContentLoaded", async () => {
-    try {
-        const res = await fetch("maintenance-config.json?_=" + new Date().getTime())
-
-        cache: "no-store",
-        headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        }
-      });
-      const config = await res.json();
-  
-      const overlay = document.getElementById("maintenance-overlay");
-      const allVisibleIds = [
-        "login-form", "signup-form", "dashboard-container", "stock-opname-container",
-        "riwayat-container", "custom-showAlert", "price-diff-container"
-      ];
-  
-      if (config.maintenance) {
-        if (overlay) overlay.style.display = "flex";
-        allVisibleIds.forEach(id => {
-          const el = document.getElementById(id);
-          if (el) el.style.display = "none";
-        });
-      } else {
-        if (overlay) overlay.style.display = "none";
-        // Jangan paksa semua display = block, biarkan program utama yang atur
-        // Tapi pastikan overlay tidak aktif
+  try {
+    const res = await fetch("maintenance-config.json?_=" + new Date().getTime(), {
+      cache: "no-store",
+      headers: {
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
       }
-    } catch (err) {
-      console.error("❌ Gagal membaca konfigurasi maintenance:", err);
+    });
+    const config = await res.json();
+
+    const overlay = document.getElementById("maintenance-overlay");
+    const allVisibleIds = [
+      "login-form", "signup-form", "dashboard-container", "stock-opname-container",
+      "riwayat-container", "custom-showAlert", "price-diff-container"
+    ];
+
+    if (config.maintenance) {
+      if (overlay) overlay.style.display = "flex";
+      allVisibleIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = "none";
+      });
+    } else {
+      if (overlay) overlay.style.display = "none";
+      // Jangan paksa semua display = block, biarkan program utama yang atur
+      // Tapi pastikan overlay tidak aktif
     }
-  });
+  } catch (err) {
+    console.error("❌ Gagal membaca konfigurasi maintenance:", err);
+  }
+});
+
   
 
 
