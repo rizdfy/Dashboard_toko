@@ -110,11 +110,29 @@
         <p>Selamat datang, <span id="user-email"></span>!</p>
 
         <div id="form-barang">
-            
             <input type="text" id="namaBarang" placeholder="Nama Barang" />
-            <input type="number" id="hargaBarang" placeholder="Harga (Rp)" />
+            <input type="number" id="hargaBarang" placeholder="Harga Total (Rp)" />
+
+            <!-- Dropdown satuan -->
+            <select id="satuanBarang">
+                <option value="pcs" data-isi="1">1 pcs</option>
+                <option value="box" data-isi="12">1 box = 12 pcs</option>
+                <option value="dus" data-isi="24">1 dus = 24 pcs</option>
+                <option value="karton" data-isi="48">1 karton = 48 pcs</option>
+                <option value="custom">Custom...</option>
+            </select>
+
+           <!-- Input manual kalau pilih custom -->
+            <div id="customWrapper" style="display:none; margin-top:5px;">
+                <input type="text" id="namaCustom" placeholder="Nama satuan custom">
+                <input type="number" id="isiCustom" placeholder="Isi per satuan">
+            </div>
+
+
             <button id="btnTambah">Tambah Barang</button>
         </div>
+
+
         <div id ="cari-barang">
             <input type="text" id="searchBarang" placeholder="Cari Barang" oninput="loadBarang()" />
         </div>
@@ -126,11 +144,14 @@
                         <tr>
                             <th>No</th>
                             <th>Nama Barang</th>
-                            <th>Harga</th>
+                            <th>Satuan</th>
+                            <th>Harga Total</th>
+                            <th>Harga Satuan</th>
                             <th>Terakhir Diedit</th>
-                            <th></th>
+                            <th>Aksi</th>
                         </tr>
                     </thead>
+
                     <tbody id="barangList"></tbody>
                 </table>
             </div>
@@ -254,6 +275,9 @@
     <p><strong>Selisih:</strong> Rp <span id="selisih-harga">-</span></p>
 </div>
 <script type="module" src="main.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs/dist/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+
 </body>
 </html>
