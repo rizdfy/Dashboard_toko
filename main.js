@@ -236,15 +236,22 @@ async function loadBarang() {
     } else {
         filtered.forEach((item, index) => {
             const row = table.insertRow();
+            const satuanDisplay = item.isiPerSatuan > 1 
+                ? `1 ${item.satuan} ( ${item.isiPerSatuan} pcs )`
+                : item.satuan;
             row.innerHTML = `
                 <td>${index + 1}</td>
                 <td>${item.nama}</td>
-                <td>Rp ${item.harga}</td>
-                <td>${item.editedAt}</td>
+                <td>${satuanDisplay}</td>
+                <td>Rp ${(item.harga || 0).toLocaleString('id-ID')}</td>
+                <td>Rp ${(item.hargaSatuan || 0).toLocaleString('id-ID')}</td>
+                <td>${item.editedAt || '-'}</td>
                 <td>
-                    <button onclick="editBarang('${item.id}', '${item.nama}', '${item.harga}')">Edit</button>
+                    <button onclick="editBarang('${item.id}', '${item.nama}', ${item.harga}, '${item.satuan}', ${item.isiPerSatuan})">Edit</button>
                     <button onclick="hapusBarang('${item.id}')">Hapus</button>
-                </td>`;
+                </td>
+                `;
+
         });
     }
 }
@@ -253,42 +260,42 @@ window.loadBarang = loadBarang;
 
 
 async function loadSidebarBarang() {
-    const querySnapshot = await getDocs(collection(db, "barang"));
-    const table = document.getElementById("sidebarBarangList");
-    const searchInput = document.getElementById("searchSidebarBarang");
-    const searchValue = searchInput?.value.trim().toLowerCase() || "";
-    table.innerHTML = "";
+  const querySnapshot = await getDocs(collection(db, "barang"));
+  const table = document.getElementById("sidebarBarangList");
+  const searchInput = document.getElementById("searchSidebarBarang");
+  const searchValue = searchInput?.value.trim().toLowerCase() || "";
+  table.innerHTML = "";
 
-    const dataList = querySnapshot.docs.map(docSnap => ({
-        id: docSnap.id,
-        ...docSnap.data(),
-    }));
+  const dataList = querySnapshot.docs.map(docSnap => ({
+    id: docSnap.id,
+    ...docSnap.data(),
+  }));
 
-    const filtered = dataList.filter(item =>
-        item.nama?.toLowerCase().includes(searchValue)
-    );
+  const filtered = dataList.filter(item =>
+    item.nama?.toLowerCase().includes(searchValue)
+  );
 
-    filtered.sort((a, b) => a.nama.toLowerCase().localeCompare(b.nama.toLowerCase()));
+  filtered.sort((a, b) => a.nama.toLowerCase().localeCompare(b.nama.toLowerCase()));
 
-    if (filtered.length === 0) {
-        table.innerHTML = "<tr><td colspan='4'>Barang tidak ditemukan</td></tr>";
-    } else {
-        filtered.forEach((item, index) => {
-            const row = table.insertRow();
-            row.innerHTML = `
-                <td>${index + 1}</td>
-                <td>${item.nama}</td>
-                <td>Rp ${item.harga}</td>
-                <td>
-                    <button onclick="tambahKeLembar('kurang', '${item.nama}', ${item.harga})">Kurang</button>
-                    <button onclick="tambahKeLembar('lebih', '${item.nama}', ${item.harga})">Lebih</button>
-                </td>
-            `;
-        });
-    }
+  if (filtered.length === 0) {
+    table.innerHTML = "<tr><td colspan='4'>Barang tidak ditemukan</td></tr>";
+  } else {
+    filtered.forEach((item, index) => {
+      const row = table.insertRow();
+      row.innerHTML = `
+        <td>${index + 1}</td>
+        <td>${item.nama}</td>
+        <td>Rp ${item.harga.toLocaleString('id-ID')}</td>
+        <td>
+          <button onclick="tambahKeLembarOpname('kurang', '${item.nama}', ${item.harga}, '${item.satuan}', ${item.isiPerSatuan})">Kurang</button>
+          <button onclick="tambahKeLembarOpname('lebih', '${item.nama}', ${item.harga}, '${item.satuan}', ${item.isiPerSatuan})">Lebih</button>
+        </td>
+      `;
+    });
+  }
 }
-
 window.loadSidebarBarang = loadSidebarBarang;
+
 document.getElementById("btn-stock-opname").addEventListener("click", () => {
     document.getElementById("dashboard-container").style.display = "none";
     document.getElementById("stock-opname-container").style.display = "block";
@@ -302,52 +309,43 @@ let daftarLebih = [];
 //kurang lebih
 
 // Fungsi untuk menambah barang ke lembar kurang/lebih
-function tambahKeLembar(tipe, nama, harga) {
-    // Meminta input qty dari pengguna
-    const qtyInput = prompt("Masukkan jumlah (qty) untuk " + nama + ":", "1");
-
-    // Kalau user cancel atau tidak mengisi nilai valid, batal
-    if (qtyInput === null || isNaN(qtyInput) || parseInt(qtyInput) <= 0) {
-        return; // Tidak lanjut menambahkan
-    }
+function tambahKeLembar(tipe, nama, harga, satuan = "pcs", isiPerSatuan = 1) {
+    const qtyInput = prompt(`Masukkan jumlah untuk ${nama} (${satuan}):`, "1");
+    if (qtyInput === null || isNaN(qtyInput) || parseInt(qtyInput) <= 0) return;
 
     const qty = parseInt(qtyInput);
-
+    const displayQty = formatQty(qty, satuan, isiPerSatuan);
     const total = harga * qty;
 
-    const tbodyId = tipe === 'kurang' ? 'lembarKurang' : 'lembarLebih';
+    const tbodyId = tipe === "kurang" ? "lembarKurang" : "lembarLebih";
     const tbody = document.getElementById(tbodyId);
 
-    const row = document.createElement('tr');
+    const row = document.createElement("tr");
     row.innerHTML = `
-        <td class="qty">${qty}</td>
+        <td class="qty">${displayQty}</td>
         <td>${nama}</td>
-        <td>Rp ${total.toLocaleString('id-ID')}</td>
-        <td>
-            <button class="edit-btn">Edit</button>
-            <button class="hapus-btn">Hapus</button>
-        </td>
+        <td>Rp ${total.toLocaleString("id-ID")}</td>
+        <td><button class="hapus-btn">Hapus</button></td>
     `;
     tbody.appendChild(row);
 
-    // Menambahkan event listener untuk tombol Edit dan Hapus
-    row.querySelector('.edit-btn').addEventListener('click', function() {
-        editItem(this, tipe, nama, harga);
-    });
-    row.querySelector('.hapus-btn').addEventListener('click', function() {
-        hapusItem(this, tipe);
-    });
+    // Tambah ke array global
+    const data = { nama, harga, qty, displayQty, total };
+    if (tipe === "kurang") daftarKurang.push(data);
+    else daftarLebih.push(data);
 
-    const data = { nama, harga, qty, total };
-    if (tipe === 'kurang') {
-        daftarKurang.push(data);
-    } else {
-        daftarLebih.push(data);
-    }
+    row.querySelector(".hapus-btn").addEventListener("click", () => {
+        row.remove();
+        if (tipe === "kurang")
+            daftarKurang = daftarKurang.filter(item => item.nama !== nama);
+        else
+            daftarLebih = daftarLebih.filter(item => item.nama !== nama);
+    });
 
     console.log("Kurang:", daftarKurang);
     console.log("Lebih:", daftarLebih);
 }
+
 
 // Fungsi untuk mengedit qty barang di lembar kurang/lebih
 function editItem(button, tipe, nama, harga) {
@@ -413,6 +411,56 @@ function hapusItem(button, tipe) {
 window.tambahKeLembar = tambahKeLembar;
 
 
+function formatQty(qty, satuan, isiPerSatuan) {
+  if (!isiPerSatuan || isiPerSatuan <= 1) return `${qty} ${satuan}`;
+
+  const fullUnit = Math.floor(qty / isiPerSatuan);
+  const remainder = qty % isiPerSatuan;
+
+  let result = "";
+  if (fullUnit > 0) result += `${fullUnit} ${satuan}`;
+  if (remainder > 0) result += (result ? " + " : "") + `${remainder} pcs`;
+  return result;
+}
+
+function tambahKeLembarOpname(tipe, nama, harga, satuan = "pcs", isiPerSatuan = 1) {
+  const qtyInput = prompt(`Masukkan jumlah untuk ${nama} (${satuan}):`, "1");
+  if (qtyInput === null || isNaN(qtyInput) || parseInt(qtyInput) <= 0) return;
+
+  const qty = parseInt(qtyInput);
+
+  const total = harga * (qty / isiPerSatuan);
+  const displayQty = formatQty(qty, satuan, isiPerSatuan);
+
+  const tbodyId = tipe === "kurang" ? "lembarKurang" : "lembarLebih";
+  const tbody = document.getElementById(tbodyId);
+
+  const row = document.createElement("tr");
+  row.innerHTML = `
+    <td class="qty">${displayQty}</td>
+    <td>${nama}</td>
+    <td>Rp ${total.toLocaleString("id-ID")}</td>
+    <td><button class="hapus-btn">Hapus</button></td>
+  `;
+  tbody.appendChild(row);
+
+  // ✅ Tambahkan ke array global
+  const data = { nama, harga, qty, displayQty, total };
+  if (tipe === "kurang") daftarKurang.push(data);
+  else daftarLebih.push(data);
+
+  // ✅ Hapus dari array kalau tombol hapus diklik
+  row.querySelector(".hapus-btn").addEventListener("click", () => {
+    row.remove();
+    if (tipe === "kurang") {
+      daftarKurang = daftarKurang.filter(item => item.nama !== nama);
+    } else {
+      daftarLebih = daftarLebih.filter(item => item.nama !== nama);
+    }
+  });
+}
+
+window.tambahKeLembarOpname = tambahKeLembarOpname;
 
 
 // Menampilkan perbedaan harga
@@ -467,6 +515,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
+// Saat user pilih dropdown satuan
+const customWrapper = document.getElementById("customWrapper");
+const satuanSelect = document.getElementById("satuanBarang");
+
+
+satuanSelect.addEventListener("change", () => {
+  if (satuanSelect.value === "custom") {
+    customWrapper.style.display = "block";  // tampilkan keduanya
+  } else {
+    customWrapper.style.display = "none";   // sembunyikan keduanya
+    document.getElementById("namaCustom").value = "";
+    document.getElementById("isiCustom").value = "";
+  }
+});
+
+
+
+
+
+
+
 window.editBarang = function(id, nama, harga) {
     document.getElementById("namaBarang").value = nama;
     document.getElementById("hargaBarang").value = harga;
@@ -485,53 +554,66 @@ window.hapusBarang = async function(id) {
 };
 
 document.getElementById("btnTambah").addEventListener("click", async () => {
-    const nama = document.getElementById("namaBarang").value;
-    const harga = document.getElementById("hargaBarang").value;
+  const nama = document.getElementById("namaBarang").value.trim();
+  const harga = parseInt(document.getElementById("hargaBarang").value);
+  const satuanSelect = document.getElementById("satuanBarang");
+  const namaCustomInput = document.getElementById("namaCustom");
+  const isiCustom = document.getElementById("isiCustom");
 
-    if (!nama || !harga) {
-        showAlert("Nama dan harga barang harus diisi!","info");
-        return;
-    }
+  if (!nama || !harga) {
+    showAlert("Nama dan harga barang harus diisi!", "info");
+    return;
+  }
 
-    const btn = document.getElementById("btnTambah");
+  let satuan, isiPerSatuan;
 
-    if (editId) {
-    const oldHarga = document.getElementById("hargaBarang").getAttribute("data-old-harga");
+  if (satuanSelect.value === "custom") {
+    const namaSatuanCustom = namaCustomInput.value.trim() || "satuan";
+    isiPerSatuan = parseInt(isiCustom.value) || 1;
+    satuan = namaSatuanCustom;
+  } else {
+    satuan = satuanSelect.value;
+    isiPerSatuan = parseInt(satuanSelect.selectedOptions[0].dataset.isi) || 1;
+  }
 
-    // Ambil data lama sebelum diubah (nama & harga)
-    const querySnapshot = await getDoc(doc(db, "barang", editId));
-    const dataLama = querySnapshot.data();
-    const namaLama = dataLama.nama;
+  const hargaSatuan = harga / isiPerSatuan;
 
-    if (parseInt(oldHarga) !== parseInt(harga)) {
-        updatePriceDiff(nama, parseInt(oldHarga), parseInt(harga));
-    }
-
+  if (editId) {
     await updateDoc(doc(db, "barang", editId), {
-        nama,
-        harga,
-        editedAt: new Date()
+      nama,
+      harga,
+      satuan,
+      isiPerSatuan,
+      hargaSatuan,
+      editedAt: new Date()
     });
+    showAlert("Barang berhasil diperbarui!", "success");
+    editId = null;
+  } else {
+    await addDoc(collection(db, "barang"), {
+      nama,
+      harga,
+      satuan,
+      isiPerSatuan,
+      hargaSatuan,
+      editedAt: new Date()
+    });
+    showAlert("Barang berhasil ditambahkan!", "success");
+  }
 
-    // Update juga riwayat yang menggunakan barang ini
-    await updateBarangDanRiwayat(editId, nama, harga, namaLama);
-        
-        //updated//
+  // ✅ Reset form & sembunyikan custom input
+  document.getElementById("namaBarang").value = "";
+  document.getElementById("hargaBarang").value = "";
+  document.getElementById("namaCustom").value = "";
+  document.getElementById("isiCustom").value = "";
+  document.getElementById("satuanBarang").value = "pcs";
+  document.getElementById("customWrapper").style.display = "none"; // <- ini yang penting
 
-        showAlert("Barang berhasil diperbarui!","success");
-        
-        btn.textContent = "Tambah Barang";
-        document.getElementById("hargaBarang").removeAttribute("data-old-harga");
-    } else {
-        await addDoc(collection(db, "barang"), { nama, harga });
-        showAlert(`${nama} berhasil ditambahkan!`,"success");
-
-    }
-
-    document.getElementById("namaBarang").value = "";
-    document.getElementById("hargaBarang").value = "";
-    loadBarang();
+  loadBarang();
 });
+
+
+
 
 // Tampilkan login/signup
 function showLogin() {
@@ -612,13 +694,11 @@ document.getElementById("btnSimpanOpname").addEventListener("click", async () =>
 ////////////////////////////////////////////////////////////
 document.getElementById("btn-riwayat-stock-opname").addEventListener("click", async () => {
     console.log("Tombol Riwayat diklik");
-    const currentUserUid = auth.currentUser.uid;
     const user = auth.currentUser;
     if (!user) {
         showAlert("Anda belum login.");
         return;
     }
-
     const uid = user.uid;
 
     const riwayatContainer = document.getElementById("riwayat-container");
@@ -652,7 +732,7 @@ document.getElementById("btn-riwayat-stock-opname").addEventListener("click", as
             });
         }
 
-        // Tampilkan halaman riwayat
+        // tampilkan halaman riwayat
         document.getElementById("dashboard-container").style.display = "none";
         document.getElementById("stock-opname-container").style.display = "none";
         riwayatContainer.style.display = "block";
@@ -662,6 +742,7 @@ document.getElementById("btn-riwayat-stock-opname").addEventListener("click", as
         showAlert("Gagal mengambil riwayat stock opname.");
     }
 });
+
 let currentRiwayatId = null;
 window.loadRiwayat = async function(docId) {
     console.log("loadRiwayat dipanggil untuk:", docId);
@@ -719,27 +800,20 @@ function renderLembar(tipe, data) {
     data.forEach(item => {
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td class="qty">${item.qty}</td>
+            <td class="qty">${item.displayQty || item.qty}</td>
             <td>${item.nama}</td>
             <td>Rp ${item.total.toLocaleString('id-ID')}</td>
             <td>
-                <button class="edit-btn">Edit</button>
                 <button class="hapus-btn">Hapus</button>
             </td>
         `;
-
-        // Tambahkan event handler Edit dan Hapus
-        row.querySelector('.edit-btn').addEventListener('click', function() {
-            editItem(this, tipe, item.nama, item.harga); // Pastikan item punya "harga"
-        });
-
         row.querySelector('.hapus-btn').addEventListener('click', function() {
-            hapusItem(this, tipe);
+            hapusItem(this, tipe, item.nama);
         });
-
         tbody.appendChild(row);
     });
 }
+
 
 
 
@@ -1025,73 +1099,70 @@ window.exportRiwayatToExcel = async function (docId) {
         const data = docSnap.data();
         const lebih = data.lebih || [];
         const kurang = data.kurang || [];
-        // Isi input nama dokumen dengan judul dari data lama
-        document.getElementById("judulDokumen").value = data.judul || "";
-        document.getElementById("judul-dokumen-terpilih").textContent = `Nama Dokumen: ${data.judul || "(Tanpa Judul)"}`;
+        const tanggal = data.timestamp?.toDate
+            ? new Date(data.timestamp.toDate()).toLocaleDateString("id-ID")
+            : new Date().toLocaleDateString("id-ID");
 
+        // helper untuk bikin sheet
+        const buatSheet = (workbook, items, title) => {
+            const sheet = workbook.addWorksheet(title);
 
-        const formatData = (items) => {
-            const formatted = items.map(item => ({
-                qty: item.qty,
-                'nama barang': item.nama,
-                'total dalam Rupiah': `Rp. ${item.total.toLocaleString('id-ID')}`
-            }));
+            // Merge A1:C2 untuk judul
+            sheet.mergeCells("A1:C2");
+            const titleCell = sheet.getCell("A1");
+            titleCell.value = `${title.toUpperCase()} - ${tanggal}`;
+            titleCell.font = { size: 16, bold: true };
+            titleCell.alignment = { horizontal: "center", vertical: "middle" };
 
-            const totalSemua = items.reduce((acc, item) => acc + item.total, 0);
-            formatted.push({
-                qty: '',
-                'nama barang': 'Jumlah Total',
-                'total dalam Rupiah': `Rp. ${totalSemua.toLocaleString('id-ID')}`
+            // Header tabel (mulai baris ke-3)
+            sheet.getRow(3).values = ["Qty", "Nama Barang", "Total dalam Rupiah"];
+            sheet.getRow(3).font = { bold: true };
+            sheet.columns = [
+                { key: "qty", width: 15 },
+                { key: "nama", width: 30 },
+                { key: "total", width: 25 }
+            ];
+
+            // Data barang
+            let totalSemua = 0;
+            items.forEach(item => {
+                totalSemua += item.total;
+                sheet.addRow({
+                    qty: item.displayQty || item.qty,
+                    nama: item.nama,
+                    total: `Rp. ${item.total.toLocaleString("id-ID")}`
+                });
             });
 
-            return formatted;
+            // Total row
+            const totalRow = sheet.addRow({
+                qty: "",
+                nama: "Jumlah Total",
+                total: `Rp. ${totalSemua.toLocaleString("id-ID")}`
+            });
+            totalRow.font = { bold: true };
+
+            return sheet;
         };
 
-        const applyBoldToLastRow = (sheet, dataLength) => {
-            const rowNum = dataLength + 1; // Header + data rows
-            const boldStyle = { font: { bold: true } };
+        // Buat workbook
+        const workbook = new ExcelJS.Workbook();
+        buatSheet(workbook, lebih, "Lembar Lebih");
+        buatSheet(workbook, kurang, "Lembar Kurang");
 
-            const namaCell = `B${rowNum}`;
-            const totalCell = `C${rowNum}`;
+        // Export ke file
+        const buffer = await workbook.xlsx.writeBuffer();
+        saveAs(new Blob([buffer]), `Stock_Opname_${data.judul}.xlsx`);
 
-            if (sheet[namaCell]) sheet[namaCell].s = boldStyle;
-            if (sheet[totalCell]) sheet[totalCell].s = boldStyle;
-        };
-
-        // Siapkan workbook
-        const workbook = XLSX.utils.book_new();
-
-        // Sheet LEBIH
-        const lebihData = formatData(lebih);
-        const sheetLebih = XLSX.utils.json_to_sheet(lebihData, { skipHeader: false });
-        sheetLebih['!cols'] = [
-            { wch: 5 },
-            { wch: 25 },
-            { wch: 25 }
-        ];
-        applyBoldToLastRow(sheetLebih, lebih.length);
-        XLSX.utils.book_append_sheet(workbook, sheetLebih, "Lembar Lebih");
-
-        // Sheet KURANG
-        const kurangData = formatData(kurang);
-        const sheetKurang = XLSX.utils.json_to_sheet(kurangData, { skipHeader: false });
-        sheetKurang['!cols'] = [
-            { wch: 5 },
-            { wch: 25 },
-            { wch: 25 }
-        ];
-        applyBoldToLastRow(sheetKurang, kurang.length);
-        XLSX.utils.book_append_sheet(workbook, sheetKurang, "Lembar Kurang");
-
-        // Simpan file
-        XLSX.writeFile(workbook, `Stock_Opname_${docId}.xlsx`);
-        showAlert("File berhasil diekspor!");
-
+        showAlert("✅ File berhasil diekspor!");
     } catch (error) {
         console.error("Gagal export ke Excel:", error);
         showAlert("Terjadi kesalahan saat export.");
     }
 };
+
+
+
 
 
 
@@ -1195,7 +1266,7 @@ document.getElementById("stopUploadBtn").addEventListener("click", () => {
 
 
 
-document.getElementById("convert-btn").addEventListener("click", () => {
+document.getElementById("convert-btn").addEventListener("click", async () => {
     const rows = document.querySelectorAll("#barangList tr");
     if (rows.length === 0) {
         showAlert("Tidak ada data barang untuk diexport!", "warning");
@@ -1203,23 +1274,71 @@ document.getElementById("convert-btn").addEventListener("click", () => {
     }
 
     const data = [];
-
     rows.forEach((row) => {
         const cells = row.querySelectorAll("td");
-        if (cells.length >= 4) {
+        if (cells.length >= 6) {
             data.push({
                 No: cells[0].innerText,
                 Nama: cells[1].innerText,
-                Harga: cells[2].innerText,
-                "Terakhir Diedit": cells[3].innerText
+                Satuan: cells[2].innerText,
+                "Harga Total": cells[3].innerText,
+                "Harga Satuan": cells[4].innerText,
+                "Terakhir Diedit": cells[5].innerText,
             });
         }
     });
 
-    const worksheet = XLSX.utils.json_to_sheet(data);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Daftar Barang");
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Daftar Barang");
 
-    XLSX.writeFile(workbook, "Daftar_Barang.xlsx");
+    // Judul besar
+    sheet.mergeCells("A1:F2");
+    const titleCell = sheet.getCell("A1");
+    titleCell.value = "DAFTAR BARANG TOKO HJ ENDUN";
+    titleCell.font = { size: 18, bold: true };
+    titleCell.alignment = { horizontal: "center", vertical: "middle" };
+
+    // Header di baris 3
+    sheet.getRow(3).values = [
+        "No",
+        "Nama Barang",
+        "Harga Total",
+        "Satuan",
+        
+        "Harga Satuan",
+        "Terakhir Diedit"
+    ];
+    sheet.getRow(3).font = { bold: true };
+
+    // Atur lebar kolom
+    sheet.columns = [
+        { key: "No", width: 5 },
+        { key: "Nama", width: 25 },
+        { key: "Harga Total", width: 20 },
+        { key: "Satuan", width: 15 },
+        
+        { key: "Harga Satuan", width: 20 },
+        { key: "Terakhir Diedit", width: 25 }
+    ];
+
+    // Tambahkan data mulai baris 4
+    data.forEach((item) => {
+        sheet.addRow(item);
+    });
+
+    // Styling mulai baris 4 ke bawah
+    const startRow = 4;
+    for (let i = startRow; i < startRow + data.length; i++) {
+        sheet.getCell(`B${i}`).font = { bold: true };    // Nama Barang (kolom B)
+        sheet.getCell(`C${i}`).font = { bold: true };    // Harga Total (kolom C)
+        sheet.getCell(`E${i}`).font = { italic: true };  // Harga Satuan (kolom E)
+    }
+
+    // Export
+    const buffer = await workbook.xlsx.writeBuffer();
+    saveAs(new Blob([buffer]), "Daftar_Barang.xlsx");
+    showAlert("✅ Daftar barang berhasil diexport!");
 });
+
+
 
