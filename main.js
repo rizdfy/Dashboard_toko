@@ -143,26 +143,25 @@ function toggleView(user) {
 
 
 function showAlert(message, type = "success") {
-    const showAlertBox = document.getElementById("custom-showAlert");
-    showAlertBox.innerHTML = ""; // bersihkan isi sebelumnya
+    const alertPopup = document.getElementById("alert-popup");
+    const alertCard = alertPopup.querySelector(".alert-card");
+    const alertMessage = document.getElementById("alert-message");
 
-    // Tambahkan emoji berdasarkan tipe
-    const emojis = {
-        success: "✅",
-        error: "❌",
-        warning: "⚠️",
-        info: "ℹ️"
-    };
-    const emoji = emojis[type] || "";
 
-    showAlertBox.innerHTML = `${emoji} ${message}`;
-    showAlertBox.className = `showAlert ${type} show`;
+    alertMessage.textContent = message;
+    alertCard.className = "alert-card " + type;
+    alertPopup.style.display = "flex";
 
+
+    // Tutup otomatis setelah 3 detik
     setTimeout(() => {
-        showAlertBox.classList.remove("show");
-    }, 4000);
+    alertCard.classList.add("closing");
+    setTimeout(() => {
+    alertPopup.style.display = "none";
+    alertCard.classList.remove("closing");
+    }, 600);
+    }, 3000);
 }
-
 
 // Tombol SignUp
 document.getElementById("signup-btn").addEventListener("click", async () => {
@@ -205,6 +204,111 @@ document.getElementById("logout-btn").addEventListener("click", () => {
     signOut(auth);
 });
 
+
+
+
+
+
+
+
+// Tambahan di main.js untuk popup edit card
+
+const editPopup = document.getElementById("edit-popup");
+const closeEditPopup = document.getElementById("close-edit-popup");
+const saveEditBtn = document.getElementById("save-edit-btn");
+
+let currentEditId = null;
+
+// Fungsi buka popup edit dengan data barang
+function openEditPopup(barangId, barangData) {
+  currentEditId = barangId;
+  document.getElementById("edit-namaBarang").value = barangData.nama || "";
+  document.getElementById("edit-hargaBarang").value = barangData.harga || "";
+  document.getElementById("edit-namaSatuan").value = barangData.satuan || "";
+  document.getElementById("edit-isiSatuan").value = barangData.isi || "";
+  editPopup.style.display = "flex";
+}
+
+// Tutup popup dengan animasi reverse
+closeEditPopup?.addEventListener("click", () => {
+  const card = document.querySelector(".edit-card");
+  card.classList.add("closing");
+  setTimeout(() => {
+    editPopup.style.display = "none";
+    card.classList.remove("closing");
+    currentEditId = null;
+  }, 600); // sesuai durasi animasi
+});
+
+// Simpan perubahan ke Firestore
+saveEditBtn?.addEventListener("click", async () => {
+  if (!currentEditId) return;
+
+  const hargaTotal = parseFloat(document.getElementById("edit-hargaBarang").value) || 0;
+  const isiSatuan = parseInt(document.getElementById("edit-isiSatuan").value) || 1;
+
+  const updatedData = {
+    nama: document.getElementById("edit-namaBarang").value,
+    harga: hargaTotal,
+    satuan: document.getElementById("edit-namaSatuan").value,
+    isiPerSatuan: isiSatuan,
+    hargaSatuan: isiSatuan > 0 ? hargaTotal / isiSatuan : 0,
+    terakhirDiedit: new Date().toISOString()
+  };
+
+  try {
+    const barangRef = doc(db, "barang", currentEditId);
+    await updateDoc(barangRef, updatedData);
+    showAlert("✅ Data berhasil diperbarui");
+    loadBarang(); // refresh tabel
+
+    // 🔑 Jalankan animasi close popup
+    const card = document.querySelector(".edit-card");
+    card.classList.add("closing");
+    setTimeout(() => {
+      editPopup.style.display = "none";
+      card.classList.remove("closing");
+      currentEditId = null;
+    }, 600); // sesuai durasi animasi
+  } catch (error) {
+    console.error("Error update barang:", error);
+    showAlert("❌ Gagal update barang", "error");
+  }
+});
+
+
+
+// Tambahkan event listener pada tombol Edit di tabel barang
+function attachEditButtons() {
+  document.querySelectorAll(".btn-edit").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const barangId = btn.getAttribute("data-id");
+      const nama = btn.getAttribute("data-nama");
+      const harga = btn.getAttribute("data-harga");
+      const satuan = btn.getAttribute("data-satuan");
+      const isi = btn.getAttribute("data-isi");
+
+      openEditPopup(barangId, { nama, harga, satuan, isi });
+    });
+  });
+}
+
+// Panggil attachEditButtons() di akhir loadBarang()
+// Contoh:
+// loadBarang().then(() => attachEditButtons());
+
+
+
+
+
+
+
+
+
+
+
+
+
 // Fungsi load data barang
 async function loadBarang() {
     const querySnapshot = await getDocs(collection(db, "barang"));
@@ -232,7 +336,7 @@ async function loadBarang() {
     });
 
     if (filtered.length === 0) {
-        table.innerHTML = "<tr><td colspan='5'>Barang tidak ditemukan</td></tr>";
+        table.innerHTML = "<tr><td colspan='7'>Barang tidak ditemukan</td></tr>";
     } else {
         filtered.forEach((item, index) => {
             const row = table.insertRow();
@@ -247,13 +351,20 @@ async function loadBarang() {
                 <td>Rp ${(item.hargaSatuan || 0).toLocaleString('id-ID')}</td>
                 <td>${item.editedAt || '-'}</td>
                 <td>
-                    <button onclick="editBarang('${item.id}', '${item.nama}', ${item.harga}, '${item.satuan}', ${item.isiPerSatuan})">Edit</button>
+                    <button class="btn-edit" 
+                        data-id="${item.id}" 
+                        data-nama="${item.nama}" 
+                        data-harga="${item.harga}" 
+                        data-satuan="${item.satuan}" 
+                        data-isi="${item.isiPerSatuan}">Edit</button>
                     <button onclick="hapusBarang('${item.id}')">Hapus</button>
                 </td>
-                `;
-
+            `;
         });
     }
+
+    // 🔑 Pasang listener tombol Edit setelah tabel selesai dibuat
+    attachEditButtons();
 }
 window.loadBarang = loadBarang;
 
@@ -307,13 +418,44 @@ let daftarKurang = [];
 let daftarLebih = [];
 
 //kurang lebih
+function showQtyPopup(nama, satuan, callback) {
+    const qtyPopup = document.getElementById("qty-popup");
+    const qtyCard = qtyPopup.querySelector(".qty-card");
+    const qtyTitle = document.getElementById("qty-title");
+    const qtyInput = document.getElementById("qty-input");
+    const okBtn = document.getElementById("qty-ok");
+    const cancelBtn = document.getElementById("qty-cancel");
 
-// Fungsi untuk menambah barang ke lembar kurang/lebih
+
+    qtyTitle.textContent = `Masukkan jumlah untuk ${nama} (${satuan}):`;
+    qtyInput.value = 1;
+    qtyPopup.style.display = "flex";
+
+
+    okBtn.onclick = () => {
+        const val = parseInt(qtyInput.value);
+        if (!isNaN(val) && val > 0) {
+            qtyCard.classList.add("closing");
+            setTimeout(() => {
+            qtyPopup.style.display = "none";
+            qtyCard.classList.remove("closing");
+            callback(val);
+            }, 600);
+        }
+    };
+
+
+    cancelBtn.onclick = () => {
+        qtyCard.classList.add("closing");
+        setTimeout(() => {
+            qtyPopup.style.display = "none";
+            qtyCard.classList.remove("closing");
+        }, 600);
+    };
+}
+// Fungsi untuk menambah barang ke lembar kurang/lebih pakai popup
 function tambahKeLembar(tipe, nama, harga, satuan = "pcs", isiPerSatuan = 1) {
-    const qtyInput = prompt(`Masukkan jumlah untuk ${nama} (${satuan}):`, "1");
-    if (qtyInput === null || isNaN(qtyInput) || parseInt(qtyInput) <= 0) return;
-
-    const qty = parseInt(qtyInput);
+  showQtyPopup(nama, satuan, (qty) => {
     const displayQty = formatQty(qty, satuan, isiPerSatuan);
     const total = harga * qty;
 
@@ -335,15 +477,16 @@ function tambahKeLembar(tipe, nama, harga, satuan = "pcs", isiPerSatuan = 1) {
     else daftarLebih.push(data);
 
     row.querySelector(".hapus-btn").addEventListener("click", () => {
-        row.remove();
-        if (tipe === "kurang")
-            daftarKurang = daftarKurang.filter(item => item.nama !== nama);
-        else
-            daftarLebih = daftarLebih.filter(item => item.nama !== nama);
+      row.remove();
+      if (tipe === "kurang")
+        daftarKurang = daftarKurang.filter(item => item.nama !== nama);
+      else
+        daftarLebih = daftarLebih.filter(item => item.nama !== nama);
     });
 
     console.log("Kurang:", daftarKurang);
     console.log("Lebih:", daftarLebih);
+  });
 }
 
 
@@ -423,40 +566,38 @@ function formatQty(qty, satuan, isiPerSatuan) {
   return result;
 }
 
+// Fungsi untuk menambah barang ke lembar stock opname pakai popup
 function tambahKeLembarOpname(tipe, nama, harga, satuan = "pcs", isiPerSatuan = 1) {
-  const qtyInput = prompt(`Masukkan jumlah untuk ${nama} (${satuan}):`, "1");
-  if (qtyInput === null || isNaN(qtyInput) || parseInt(qtyInput) <= 0) return;
+  showQtyPopup(nama, satuan, (qty) => {
+    const total = harga * (qty / isiPerSatuan);
+    const displayQty = formatQty(qty, satuan, isiPerSatuan);
 
-  const qty = parseInt(qtyInput);
+    const tbodyId = tipe === "kurang" ? "lembarKurang" : "lembarLebih";
+    const tbody = document.getElementById(tbodyId);
 
-  const total = harga * (qty / isiPerSatuan);
-  const displayQty = formatQty(qty, satuan, isiPerSatuan);
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td class="qty">${displayQty}</td>
+      <td>${nama}</td>
+      <td>Rp ${total.toLocaleString("id-ID")}</td>
+      <td><button class="hapus-btn">Hapus</button></td>
+    `;
+    tbody.appendChild(row);
 
-  const tbodyId = tipe === "kurang" ? "lembarKurang" : "lembarLebih";
-  const tbody = document.getElementById(tbodyId);
+    // ✅ Tambahkan ke array global
+    const data = { nama, harga, qty, displayQty, total };
+    if (tipe === "kurang") daftarKurang.push(data);
+    else daftarLebih.push(data);
 
-  const row = document.createElement("tr");
-  row.innerHTML = `
-    <td class="qty">${displayQty}</td>
-    <td>${nama}</td>
-    <td>Rp ${total.toLocaleString("id-ID")}</td>
-    <td><button class="hapus-btn">Hapus</button></td>
-  `;
-  tbody.appendChild(row);
-
-  // ✅ Tambahkan ke array global
-  const data = { nama, harga, qty, displayQty, total };
-  if (tipe === "kurang") daftarKurang.push(data);
-  else daftarLebih.push(data);
-
-  // ✅ Hapus dari array kalau tombol hapus diklik
-  row.querySelector(".hapus-btn").addEventListener("click", () => {
-    row.remove();
-    if (tipe === "kurang") {
-      daftarKurang = daftarKurang.filter(item => item.nama !== nama);
-    } else {
-      daftarLebih = daftarLebih.filter(item => item.nama !== nama);
-    }
+    // ✅ Hapus dari array kalau tombol hapus diklik
+    row.querySelector(".hapus-btn").addEventListener("click", () => {
+      row.remove();
+      if (tipe === "kurang") {
+        daftarKurang = daftarKurang.filter(item => item.nama !== nama);
+      } else {
+        daftarLebih = daftarLebih.filter(item => item.nama !== nama);
+      }
+    });
   });
 }
 
@@ -545,14 +686,47 @@ window.editBarang = function(id, nama, harga) {
     btn.textContent = "Simpan Perubahan";
 };
 
-window.hapusBarang = async function(id) {
-    if (confirm("Apakah Anda yakin ingin menghapus barang ini?")) {
-        await deleteDoc(doc(db, "barang", id));
-        showAlert("Barang berhasil dihapus!","success");
-        loadBarang();
-    }
-};
+function showConfirm(message, onConfirm) {
+  const confirmPopup = document.getElementById("confirm-popup");
+  const confirmCard = confirmPopup.querySelector(".confirm-card");
+  const confirmMessage = document.getElementById("confirm-message");
+  const yesBtn = document.getElementById("confirm-yes");
+  const noBtn = document.getElementById("confirm-no");
 
+  confirmMessage.textContent = message;
+  confirmPopup.style.display = "flex";
+
+  yesBtn.onclick = async () => {
+    confirmCard.classList.add("closing");
+    setTimeout(() => {
+      confirmPopup.style.display = "none";
+      confirmCard.classList.remove("closing");
+    }, 600);
+    onConfirm();
+  };
+
+  noBtn.onclick = () => {
+    confirmCard.classList.add("closing");
+    setTimeout(() => {
+      confirmPopup.style.display = "none";
+      confirmCard.classList.remove("closing");
+    }, 600);
+  };
+}
+
+// 🔄 Ganti fungsi hapusBarang agar pakai popup konfirmasi
+window.hapusBarang = async function(id) {
+  showConfirm("Yakin ingin menghapus barang ini?", async () => {
+    try {
+      await deleteDoc(doc(db, "barang", id));
+      showAlert("🗑️ Barang berhasil dihapus", "success");
+      loadBarang();
+    } catch (error) {
+      console.error("Error hapus barang:", error);
+      showAlert("❌ Gagal menghapus barang", "error");
+    }
+  });
+};
 document.getElementById("btnTambah").addEventListener("click", async () => {
   const nama = document.getElementById("namaBarang").value.trim();
   const harga = parseInt(document.getElementById("hargaBarang").value);
