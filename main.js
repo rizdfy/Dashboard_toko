@@ -78,7 +78,7 @@ const firebaseConfig = {
 // Inisialisasi Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getFirestore(app);
+window.db = getFirestore(app);
 const provider = new GoogleAuthProvider();
 let editId = null;
 
@@ -240,24 +240,29 @@ closeEditPopup?.addEventListener("click", () => {
   }, 600); // sesuai durasi animasi
 });
 
-// Simpan perubahan ke Firestore
+// Simpan perubahan ke Firestore dengan menyimpan harga lama + user + tanggal
 saveEditBtn?.addEventListener("click", async () => {
   if (!currentEditId) return;
 
   const hargaTotal = parseFloat(document.getElementById("edit-hargaBarang").value) || 0;
   const isiSatuan = parseInt(document.getElementById("edit-isiSatuan").value) || 1;
 
-  const updatedData = {
-    nama: document.getElementById("edit-namaBarang").value,
-    harga: hargaTotal,
-    satuan: document.getElementById("edit-namaSatuan").value,
-    isiPerSatuan: isiSatuan,
-    hargaSatuan: isiSatuan > 0 ? hargaTotal / isiSatuan : 0,
-    terakhirDiedit: new Date().toISOString()
-  };
-
   try {
     const barangRef = doc(db, "barang", currentEditId);
+    const barangSnap = await getDoc(barangRef);
+    const oldData = barangSnap.data();
+
+    const updatedData = {
+      nama: document.getElementById("edit-namaBarang").value,
+      harga: hargaTotal,
+      satuan: document.getElementById("edit-namaSatuan").value || "pcs",
+      isiPerSatuan: isiSatuan,
+      hargaSatuan: isiSatuan > 0 ? hargaTotal / isiSatuan : 0,
+      editedAt: new Date(), // simpan tanggal perubahan (Firestore Timestamp)
+      editedBy: auth.currentUser ? auth.currentUser.email : "anonymous", // user yang mengubah
+      hargaLama: oldData?.harga || hargaTotal // simpan harga lama jika ada
+    };
+
     await updateDoc(barangRef, updatedData);
     showAlert("✅ Data berhasil diperbarui");
     loadBarang(); // refresh tabel
@@ -275,7 +280,6 @@ saveEditBtn?.addEventListener("click", async () => {
     showAlert("❌ Gagal update barang", "error");
   }
 });
-
 
 
 // Tambahkan event listener pada tombol Edit di tabel barang
@@ -340,9 +344,10 @@ async function loadBarang() {
     } else {
         filtered.forEach((item, index) => {
             const row = table.insertRow();
-            const satuanDisplay = item.isiPerSatuan > 1 
-                ? `1 ${item.satuan} ( ${item.isiPerSatuan} pcs )`
-                : item.satuan;
+            const satuan = item.satuan || "pcs"; // default ke pcs jika undefined
+            const satuanDisplay = item.isiPerSatuan > 1
+                ? `1 ${satuan} ( ${item.isiPerSatuan} pcs )`
+                : satuan;
             row.innerHTML = `
                 <td>${index + 1}</td>
                 <td>${item.nama}</td>
@@ -398,8 +403,8 @@ async function loadSidebarBarang() {
         <td>${item.nama}</td>
         <td>Rp ${item.harga.toLocaleString('id-ID')}</td>
         <td>
-          <button onclick="tambahKeLembarOpname('kurang', '${item.nama}', ${item.harga}, '${item.satuan}', ${item.isiPerSatuan})">Kurang</button>
-          <button onclick="tambahKeLembarOpname('lebih', '${item.nama}', ${item.harga}, '${item.satuan}', ${item.isiPerSatuan})">Lebih</button>
+            <button onclick="tambahKeLembarOpname('kurang', '${item.nama}', ${item.harga}, '${item.satuan || 'pcs'}', ${item.isiPerSatuan || 1})">Kurang</button>
+            <button onclick="tambahKeLembarOpname('lebih', '${item.nama}', ${item.harga}, '${item.satuan || 'pcs'}', ${item.isiPerSatuan || 1})">Lebih</button>
         </td>
       `;
     });
@@ -1515,4 +1520,92 @@ document.getElementById("convert-btn").addEventListener("click", async () => {
 });
 
 
+
+
+
+const btnStatistikHarga = document.getElementById("btnStatistikHarga");
+const statistikPopup = document.getElementById("statistik-popup");
+const closeStatistikPopup = document.getElementById("close-statistik-popup");
+const statistikContent = document.getElementById("statistik-content");
+
+btnStatistikHarga.addEventListener("click", async () => {
+  statistikContent.innerHTML = ""; // reset konten
+
+  const querySnapshot = await getDocs(collection(db, "barang"));
+  let perubahan = [];
+
+  querySnapshot.forEach(docSnap => {
+    const data = docSnap.data();
+    if (data.hargaLama && data.harga) {
+      const selisih = data.harga - data.hargaLama;
+      if (selisih !== 0) {
+        perubahan.push({
+          nama: data.nama,
+          hargaLama: data.hargaLama,
+          hargaBaru: data.harga,
+          selisih,
+          editedAt: data.editedAt ? (data.editedAt.toDate ? data.editedAt.toDate() : new Date(data.editedAt)) : null,
+          editedBy: data.editedBy || '-'
+        });
+      }
+    }
+  });
+
+  // Urutkan berdasarkan tanggal edit terbaru
+  perubahan.sort((a, b) => (b.editedAt?.getTime() || 0) - (a.editedAt?.getTime() || 0));
+
+  if (perubahan.length === 0) {
+    statistikContent.innerHTML = "<p>Tidak ada perubahan harga yang tercatat.</p>";
+  } else {
+    statistikContent.style.maxHeight = "300px";
+    statistikContent.style.overflowY = "auto";
+
+    perubahan.forEach((item, index) => {
+      let badge = "";
+      if (item.selisih > 0) {
+        badge = `<span class="badge-bounce badge-up" style="animation-delay:${index * 0.2}s">⬆ naik</span>`;
+      } else if (item.selisih < 0) {
+        badge = `<span class="badge-bounce badge-down" style="animation-delay:${index * 0.2}s">⬇ turun</span>`;
+      }
+
+      statistikContent.innerHTML += `
+        <p style="animation: fadeIn 0.6s ease ${index * 0.2}s forwards; opacity:0;">
+          <strong>${item.nama} ${index === 0 ? badge : ""}</strong><br>
+          Harga Lama: Rp ${item.hargaLama.toLocaleString('id-ID')}<br>
+          Harga Baru: Rp ${item.hargaBaru.toLocaleString('id-ID')}<br>
+          Selisih: <span style="color:${item.selisih>0?'green':'red'}">Rp ${item.selisih.toLocaleString('id-ID')}</span><br>
+          Diubah oleh: ${item.editedBy}<br>
+          Tanggal: ${item.editedAt ? item.editedAt.toLocaleString('id-ID') : '-'}
+        </p>
+        <hr>
+      `;
+    });
+  }
+
+  statistikPopup.style.display = "flex";
+});
+
+
+closeStatistikPopup.addEventListener("click", () => {
+  const card = document.querySelector(".statistik-card");
+  if (card) {
+    card.classList.add("closing"); // jalankan animasi reverse
+    setTimeout(() => {
+      statistikPopup.style.display = "none";
+      card.classList.remove("closing"); // reset
+    }, 600); // sesuai durasi animasi di CSS
+  } else {
+    statistikPopup.style.display = "none";
+  }
+});
+
+// Tombol lihat kenaikan harga dari waktu ke waktu (panggil fungsi di statistik-chart.js)
+const btnStatistikWaktu = document.getElementById("btnStatistikWaktu");
+btnStatistikWaktu.addEventListener("click", async () => {
+  if (typeof window.loadStatistikChart === "function") {
+    await window.loadStatistikChart();
+  } else {
+    console.error("⚠️ loadStatistikChart belum tersedia. Pastikan statistik-chart.js sudah dimuat.");
+  }
+});
 
